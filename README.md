@@ -1,2 +1,378 @@
-# shopping-web-scraper
-Scraper for Amazon and Snapdeal (Extensible)
+# How to make Web-Scraper
+
+# Tech Stack
+
+- Using **[Python 3.11](https://python.org)**
+- Beautiful Soup 4
+
+# Installing Modules
+
+```bash
+pip install request bs4
+```
+
+# Creating the Scraper
+
+## Import Modules
+
+```python
+import requests
+from bs4 import BeautifulSoup
+```
+
+## Create a function to fetch HTML code
+
+```python
+def fetch_html(source, headers={}):
+    response = requests.get(source, headers=headers)
+
+    while response.status_code != 200:
+        response = requests.get(source, headers=headers)
+
+    return response.text
+```
+
+## Create a function to scrape data
+
+### Data we want to scrape
+
+```json
+{
+    "item-query": {
+        ["element-properties"],
+        {"selector": "selector-value"}
+    },
+    "item-name": {
+        ["element-properties"],
+        {"selector": "selector-value"}
+    },
+    "item-price": {
+        ["element-properties"],
+        {"selector": "selector-value"}
+    },
+    "source": "source-website"
+}
+```
+
+### Code for scraping
+
+```python
+def scrape_html(html, scrape_data):
+    soup = BeautifulSoup(html, "html.parser")
+    search_results = soup.find_all(
+        *scrape_data["item-query"][0],
+        **scrape_data["item-query"][1]
+    )
+
+    output = []
+
+    for result in search_results:
+        result_name = result.find(
+            *scrape_data["item-name"][0],
+            **scrape_data["item-name"][1]
+        )
+
+        result_price = result.find(
+            *scrape_data["item-price"][0],
+            **scrape_data["item-price"][1]
+        )
+
+        result_link = result.find(
+            "a",
+            href=True
+        )
+
+        if not all([result_name, result_price, result_link]):
+            continue
+
+        output.append({
+            "source": scrape_data["source"],
+            "name": result_name.get_text(),
+            "price": result_price.get_text(),
+            "link": result_link.href
+        })
+    
+    return output
+```
+
+## Combination of fetching and scraping data
+
+The following code will scrape data from *any website* given its link and scraping data.
+
+```python
+def scrape(url, headers, scrape_data):
+    html = fetch_html(url, headers)
+    output = scrape_html(html, scrape_data)
+
+    return output
+```
+
+## Convert Price to Integer
+
+```python
+def makeInt(s):
+    i = ""
+
+    for ch in [c for c in s]:
+        if ch == "." and i:
+            break
+
+        if not ch.isdigit():
+            continue
+
+        i += ch
+
+    return int(i)
+```
+
+## Searching for items
+
+```python
+def search(query, websites, headers):
+    output = []
+
+    for website in websites:
+        output.extend(
+            scrape(
+                website["url"] + query,
+                headers,
+                website["scrape_data"]
+            )
+        )
+    
+    output.sort(key=lambda res: makeInt(res["price"]))
+    
+    return output
+```
+
+## Display results
+
+```python
+def display_results(results):
+    for result in results:
+        results_name = result["name"][:30]
+        
+        results_price = makeInt(result["price"])
+        results_price = f"Rs. {results_price}"
+
+        results_link = result["link"]
+        results_source = result["source"]
+
+        f_results = f"{results_name:<30} - {results_price:<20} - {results_source}"
+
+        print(f_results)
+```
+
+## CLI I/O
+
+Take input in CLI mode and and output in the same console.
+
+```python
+def cli(websites, headers):
+    query = input("Search for: ")
+    results = search(query, websites, headers)
+
+    display_results(results)
+```
+
+## Run the main code
+
+```python
+if __name__ == "__main__":
+    headers = {
+        "user-agent": "PUT-YOUR-USER-AGENT-HERE"
+    }
+
+    websites_data = [
+        {
+            "url": "URL",
+            "scrape_data": {
+					    "item-query": {
+					        ["element-properties"],
+					        {"selector": "selector-value"}
+					    },
+					    "item-name": {
+					        ["element-properties"],
+					        {"selector": "selector-value"}
+					    },
+					    "item-price": {
+					        ["element-properties"],
+					        {"selector": "selector-value"}
+					    },
+					    "source": "source-website"
+					},
+					{
+            "url": "URL",
+            "scrape_data": {
+					    "item-query": {
+					        ["element-properties"],
+					        {"selector": "selector-value"}
+					    },
+					    "item-name": {
+					        ["element-properties"],
+					        {"selector": "selector-value"}
+					    },
+					    "item-price": {
+					        ["element-properties"],
+					        {"selector": "selector-value"}
+					    },
+					    "source": "source-website"
+					}
+    ]
+
+    cli(websites_data, headers)
+```
+
+# Complete Code
+
+```python
+import requests
+from bs4 import BeautifulSoup
+
+def makeInt(s):
+    i = ""
+
+    for ch in [c for c in s]:
+        if ch == "." and i:
+            break
+
+        if not ch.isdigit():
+            continue
+
+        i += ch
+
+    return int(i)
+
+def fetch_html(source, headers={}):
+    response = requests.get(source, headers=headers)
+
+    while response.status_code != 200:
+        response = requests.get(source, headers=headers)
+
+    return response.text
+
+def scrape_html(html, scrape_data):
+    soup = BeautifulSoup(html, "html.parser")
+    search_results = soup.find_all(
+        *scrape_data["item-query"][0],
+        **scrape_data["item-query"][1]
+    )
+
+    output = []
+
+    for result in search_results:
+        result_name = result.find(
+            *scrape_data["item-name"][0],
+            **scrape_data["item-name"][1]
+        )
+
+        result_price = result.find(
+            *scrape_data["item-price"][0],
+            **scrape_data["item-price"][1]
+        )
+
+        result_link = result.find(
+            "a",
+            href=True
+        )
+
+        if not all([result_name, result_price, result_link]):
+            continue
+
+        output.append({
+            "source": scrape_data["source"],
+            "name": result_name.get_text(),
+            "price": result_price.get_text(),
+            "link": result_link.href
+        })
+    
+    return output
+
+def scrape(url, headers, scrape_data):
+    html = fetch_html(url, headers)
+    output = scrape_html(html, scrape_data)
+
+    return output
+
+def search(query, websites, headers):
+    output = []
+
+    for website in websites:
+        output.extend(
+            scrape(
+                website["url"] + query,
+                headers,
+                website["scrape_data"]
+            )
+        )
+    
+    output.sort(key=lambda res: makeInt(res["price"]))
+    
+    return output
+
+def display_results(results):
+    for result in results:
+        results_name = result["name"][:30]
+        
+        results_price = makeInt(result["price"])
+        results_price = f"Rs. {results_price}"
+
+        results_link = result["link"]
+        results_source = result["source"]
+
+        f_results = f"{results_name:<30} - {results_price:<20} - {results_source}"
+
+        print(f_results)
+
+def cli(websites, headers):
+    query = input("Search for: ")
+    results = search(query, websites, headers)
+
+    display_results(results)
+
+if __name__ == "__main__":
+    headers = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    }
+
+    websites_data = [
+        {
+            "url": "https://amazon.in/s?k=",
+            "scrape_data": {
+                "item-query": [
+                    ["div"],
+                    {"class": "s-result-item"}
+                ],
+                "item-name": [
+                    ["span"],
+                    {"class": "a-text-normal"}
+                ],
+                "item-price": [
+                    ["span"],
+                    {"class": "a-offscreen"}
+                ],
+                "source": "Amazon"
+            }
+        },
+        {
+            "url": "https://snapdeal.com/search?keyword=",
+            "scrape_data": {
+                "item-query": [
+                    ["div"],
+                    {"class": "product-tuple-listing"}
+                ],
+                "item-name": [
+                    ["p"],
+                    {"class": "product-title"}
+                ],
+                "item-price": [
+                    ["span"],
+                    {"class": "product-price"}
+                ],
+                "source": "Snapdeal"
+            }
+        }
+    ]
+
+    cli(websites_data, headers)
+```
